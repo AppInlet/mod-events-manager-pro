@@ -447,19 +447,3 @@ class EM_Gateway_PayFast extends EM_Gateway
 }
 EM_Gateways::register_gateway( 'payfast', 'EM_Gateway_PayFast' );
 ?>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
