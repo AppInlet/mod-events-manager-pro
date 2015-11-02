@@ -202,6 +202,7 @@ class EM_Gateway_PayFast extends EM_Gateway
         }
 
         $payfast_vars['signature'] = md5( $pfOutput );
+        $payfast_vars['user_agent'] = 'Events Manager Pro 2';
         
         return apply_filters('em_gateway_payfast_get_payfast_vars', $payfast_vars, $EM_Booking, $this);
     }
