@@ -260,6 +260,19 @@ class EM_Gateway_PayFast extends EM_Gateway
             }
         }
 
+        //// Verify security signature
+        if( !$pfError )
+        {
+            pflog( 'Verify security signature' );
+
+            // If signature different, log for debugging
+            if( !pfValidSignature( $pfData, $pfParamString ) )
+            {
+                $pfError = true;
+                $pfErrMsg = PF_ERR_INVALID_SIGNATURE;
+            }
+        }
+
         if( !$pfError && !$pfDone )
         {
             pflog( 'Verify source IP' );
@@ -292,57 +305,58 @@ class EM_Gateway_PayFast extends EM_Gateway
         }
 
         // handle cases that the system must ignore
-        $new_status = false;
-        //Common variables
-        $amount = $_POST['amount_gross'];
-        $currency = 'ZAR';
-        $timestamp = date( 'Y-m-d H:i:s' );
-        $booking_id = $_POST['custom_int1'];
-        $event_id = $_POST['custom_int2'];
-        $EM_Booking = $EM_Booking = em_get_booking($booking_id);
-        // booking exists
-        // override the booking ourselves:
-        $EM_Booking->manage_override = true;
-        $user_id = $EM_Booking->person_id;
-
-        // process PayFast response
-        switch ( $_POST['payment_status'] )
+        if( !$pfError && !$pfDone )
         {
-            case 'COMPLETE':
-                pflog( '-Complete');
-                // case: successful payment
-                $this->record_transaction( $EM_Booking, $amount, $currency, $timestamp, $_POST['pf_payment_id'], $_POST['payment_status'], '' );
+            pflog( 'check status and update order' );
 
-                if ( $_POST['amount_gross'] >= $EM_Booking->get_price() && (!get_option( 'em_'.$this->gateway.'_manual_approval', false ) || !get_option( 'dbem_bookings_approval' ) ) )
-                {
-                    // approve and ignore spaces
-                    $EM_Booking->approve( true, true );
-                }
-                else
-                {
-                    //TODO do something if pp payment not enough
-                    $EM_Booking->set_status(0); //Set back to normal "pending"
-                }
-                do_action( 'em_payment_processed', $EM_Booking, $this );
-                break;
-            case 'FAILED':
-                pflog( '- Failed' );
-                // case: denied
-                $note = 'Last transaction failed';
-                $this->record_transaction( $EM_Booking, $amount, $currency, $timestamp, $_POST['pf_payment_id'], $_POST['payment_status'], $note );
-                $EM_Booking->cancel();
-                do_action( 'em_payment_denied', $EM_Booking, $this );
-                break;
-            case 'PENDING':
-                pflog( '- Pending' );
-                // case: pending
-                $note = 'Last transaction is pending. Reason: ' . ( isset($pending_str[$reason]) ? $pending_str[$reason] : $pending_str['*'] );
-                $this->record_transaction( $EM_Booking, $amount, $currency, $timestamp, $_POST['txn_id'], $_POST['payment_status'], $note );
-                do_action( 'em_payment_pending', $EM_Booking, $this );
-                break;
-            default:
-                // If unknown status, do nothing (safest course of action)
-                break;
+            $new_status = false;
+            //Common variables
+            $amount = $_POST['amount_gross'];
+            $currency = 'ZAR';
+            $timestamp = date('Y-m-d H:i:s');
+            $booking_id = $_POST['custom_int1'];
+            $event_id = $_POST['custom_int2'];
+            $EM_Booking = $EM_Booking = em_get_booking($booking_id);
+            // booking exists
+            // override the booking ourselves:
+            $EM_Booking->manage_override = true;
+            $user_id = $EM_Booking->person_id;
+
+            // process PayFast response
+            switch ($_POST['payment_status']) {
+                case 'COMPLETE':
+                    pflog('-Complete');
+                    // case: successful payment
+                    $this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $_POST['pf_payment_id'], $_POST['payment_status'], '');
+
+                    if ($_POST['amount_gross'] >= $EM_Booking->get_price() && (!get_option('em_' . $this->gateway . '_manual_approval', false) || !get_option('dbem_bookings_approval'))) {
+                        // approve and ignore spaces
+                        $EM_Booking->approve(true, true);
+                    } else {
+                        //TODO do something if pp payment not enough
+                        $EM_Booking->set_status(0); //Set back to normal "pending"
+                    }
+                    do_action('em_payment_processed', $EM_Booking, $this);
+                    break;
+                case 'FAILED':
+                    pflog('- Failed');
+                    // case: denied
+                    $note = 'Last transaction failed';
+                    $this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $_POST['pf_payment_id'], $_POST['payment_status'], $note);
+                    $EM_Booking->cancel();
+                    do_action('em_payment_denied', $EM_Booking, $this);
+                    break;
+                case 'PENDING':
+                    pflog('- Pending');
+                    // case: pending
+                    $note = 'Last transaction is pending. Reason: ' . (isset($pending_str[$reason]) ? $pending_str[$reason] : $pending_str['*']);
+                    $this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $_POST['txn_id'], $_POST['payment_status'], $note);
+                    do_action('em_payment_pending', $EM_Booking, $this);
+                    break;
+                default:
+                    // If unknown status, do nothing (safest course of action)
+                    break;
+            }
         }
     }
 
