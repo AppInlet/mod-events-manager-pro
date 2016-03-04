@@ -182,8 +182,9 @@ function pfValidSignature( $pfData = null, &$pfParamString = null, $pfPassphrase
  * @param $pfHost String Hostname to use
  * @param $pfParamString String
  */
-function pfValidData( $pfHost = 'www.payfast.page', $pfParamString = '' )
+function pfValidData( $pfHost, $pfParamString = '' )
 {
+//    $pfHost = get_option( 'em_'. $this->gateway . "_status" ) == 'test' ? 'sandbox.payfast.co.za':'www.payfast.co.za';
     pflog( 'Host = '. $pfHost );
     pflog( 'Params = '. $pfParamString );
 
@@ -279,10 +280,10 @@ function pfValidIP( $sourceIP )
 {
     // Variable initialization
     $validHosts = array(
-        'www.payfast.page',
-        'sandbox.payfast.page',
-        'w1w.payfast.page',
-        'w2w.payfast.page',
+        'www.payfast.co.za',
+        'sandbox.payfast.co.za',
+        'w1w.payfast.co.za',
+        'w2w.payfast.co.za',
     );
 
     $validIps = array();

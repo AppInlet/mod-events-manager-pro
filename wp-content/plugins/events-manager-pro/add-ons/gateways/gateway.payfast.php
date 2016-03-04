@@ -31,7 +31,7 @@ class EM_Gateway_PayFast extends EM_Gateway
     var $button_enabled = false;
     var $payment_return = true;
     var $count_pending_spaces = true;
-    var $supports_multiple_bookings = false;
+    var $supports_multiple_bookings = true;
 
     // Sets up gateaway and adds relevant actions/filters
     function __construct()
@@ -183,7 +183,7 @@ class EM_Gateway_PayFast extends EM_Gateway
             'item_name' => $EM_Booking->get_event()->event_name,
 
             'custom_int1' => $EM_Booking->booking_id,
-            'custom_int2' => $EM_Booking->event_id,
+        //    'custom_str1' => $EM_Booking->event_id,
         );
 
         $pfOutput = '';
@@ -284,7 +284,7 @@ class EM_Gateway_PayFast extends EM_Gateway
             }
         }
 
-        $pfHost = $PayFast_sandbox ? 'sandbox.payfast.co.za' : 'www.payfast.co.za';
+        $pfHost = get_option( 'em_'. $this->gateway . "_status" ) == 'test' ? 'sandbox.payfast.co.za':'www.payfast.co.za';
 
         if( !$pfError )
         {
@@ -315,8 +315,9 @@ class EM_Gateway_PayFast extends EM_Gateway
             $currency = 'ZAR';
             $timestamp = date('Y-m-d H:i:s');
             $booking_id = $_POST['custom_int1'];
-            $event_id = $_POST['custom_int2'];
+        //    $event_id = $_POST['custom_str1'];
             $EM_Booking = $EM_Booking = em_get_booking($booking_id);
+            
             // booking exists
             // override the booking ourselves:
             $EM_Booking->manage_override = true;
