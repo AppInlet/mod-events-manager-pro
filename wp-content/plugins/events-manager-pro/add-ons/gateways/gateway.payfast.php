@@ -177,7 +177,7 @@ class EM_Gateway_PayFast extends EM_Gateway
 
             'name_first' => $EM_Booking->get_person()->get_name(),
             //        'name_last' => $EM_Booking->get_person()->last_name,
-            'email_address' => $EM_Booking->get_person()->user_email,
+            //'email_address' => $EM_Booking->get_person()->user_email,
 
             'amount' => $EM_Booking->get_price(),
             'item_name' => $EM_Booking->get_event()->event_name,
@@ -201,7 +201,7 @@ class EM_Gateway_PayFast extends EM_Gateway
             $pfOutput = $pfOutput."passphrase=".urlencode( $passPhrase );
         }
 
-        $payfast_vars['signature'] = md5( $pfOutput );
+    //    $payfast_vars['signature'] = md5( $pfOutput );
         $payfast_vars['user_agent'] = 'Events Manager Pro 2';
         
         return apply_filters('em_gateway_payfast_get_payfast_vars', $payfast_vars, $EM_Booking, $this);
@@ -235,7 +235,7 @@ class EM_Gateway_PayFast extends EM_Gateway
         $pfDone = false;
         $pfData = array();
         $pfParamString = '';
-        $pfHost = ( get_option( 'em_'. $this->gateway . "_status" ) == 'test' ) ? 'https://sandbox.payfast.co.za/eng/process':'https://www.payfast.co.za/eng/process';
+        $pfHost = ( get_option( 'em_'. $this->gateway . "_status" ) == 'test' ) ? 'https://sandbox.payfast.co.za':'https://www.payfast.co.za';
 
         //// Notify PayFast that information has been received
         if( !$pfError && !$pfDone )
@@ -265,6 +265,10 @@ class EM_Gateway_PayFast extends EM_Gateway
         {
             pflog( 'Verify security signature' );
 
+
+            $passPhrase = get_option( 'em_'. $this->gateway . "_passphrase");
+            $pfPassphrase = empty( $passPhrase ) ? null : $passPhrase;
+
             // If signature different, log for debugging
             if( !pfValidSignature( $pfData, $pfParamString ) )
             {
@@ -283,8 +287,6 @@ class EM_Gateway_PayFast extends EM_Gateway
                 $pfErrMsg = PF_ERR_BAD_SOURCE_IP;
             }
         }
-
-        $pfHost = get_option( 'em_'. $this->gateway . "_status" ) == 'test' ? 'sandbox.payfast.co.za':'www.payfast.co.za';
 
         if( !$pfError )
         {
@@ -317,7 +319,6 @@ class EM_Gateway_PayFast extends EM_Gateway
             $booking_id = $_POST['custom_int1'];
         //    $event_id = $_POST['custom_str1'];
             $EM_Booking = $EM_Booking = em_get_booking($booking_id);
-            
             // booking exists
             // override the booking ourselves:
             $EM_Booking->manage_override = true;

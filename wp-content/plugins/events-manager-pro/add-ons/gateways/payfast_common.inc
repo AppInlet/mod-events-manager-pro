@@ -184,7 +184,6 @@ function pfValidSignature( $pfData = null, &$pfParamString = null, $pfPassphrase
  */
 function pfValidData( $pfHost, $pfParamString = '' )
 {
-//    $pfHost = get_option( 'em_'. $this->gateway . "_status" ) == 'test' ? 'sandbox.payfast.co.za':'www.payfast.co.za';
     pflog( 'Host = '. $pfHost );
     pflog( 'Params = '. $pfParamString );
 
