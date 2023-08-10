@@ -28,3 +28,5 @@ HOW DO I INSTALL THE PAYFAST MODULE?
 5. Click save changes
 6. Navigate back to Events>Payment Gateways and click on activate PayFast.
 7. Navigate to Settings>Bookings>Pricing Options and select currency ZAR.
+
+Please [click here](https://payfast.io/integration/shopping-carts/events-manager-pro/) for more information concerning this module.
