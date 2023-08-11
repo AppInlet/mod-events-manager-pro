@@ -1,4 +1,4 @@
-# events-manager-pro
+# mod-events-manager-pro
 
 PayFast Events Manager Pro v2 Module v1.00 for Events Manager Pro v2.3.9
 
