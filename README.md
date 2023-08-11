@@ -1,9 +1,8 @@
 # events-manager-pro
 
 PayFast Events Manager Pro v2 Module v1.00 for Events Manager Pro v2.3.9
-------------------------------------------------------------------------
-INTEGRATION INSTRUCTIONS:
--------------------------
+
+Installation
 
 WHAT ARE THE INSTALLATION REQUIREMENTS?
 You will need a working installation of WordPress with Events Manager and Events Manager Pro
