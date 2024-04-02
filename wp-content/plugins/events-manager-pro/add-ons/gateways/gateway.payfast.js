@@ -1,4 +1,4 @@
-// PayFast redirection
+// Payfast redirection
 
 $(document).bind('em_booking_gateway_add_payfast', function(event, response){
     // called by EM if return JSON contains gateway key, notifications messages are shown by now.
