@@ -155,38 +155,40 @@ class Gateway_Admin extends \EM\Payments\Gateway_Admin
     }
 
     /*
-     * Run when saving Payfast settings, saves the settings available in EM_Gateway_Paypal::mysettings()
+     * Run when saving Payfast settings
      */
-    public static function update($options = array())
-    {
+    public static function update($options = array()) {
+        $gateway_prefix = static::$gateway;
+
         $gateway_options = array(
-            static::$gateway . MERCHANT_ID                => $_REQUEST['merchant_id'],
-            static::$gateway . MERCHANT_KEY               => $_REQUEST['merchant_key'],
-            static::$gateway . PASSPHRASE                 => $_REQUEST['passphrase'],
-            static::$gateway . "_currency"                => $_REQUEST['currency'],
-            static::$gateway . STATUS                     => $_REQUEST[static::$gateway . '_status'],
-            static::$gateway . "_debug"                   => $_REQUEST[static::$gateway . '_debug'],
-            static::$gateway . "_manual_approval"         => $_REQUEST[static::$gateway . MANUAL_APPROVAL],
-            static::$gateway . BOOKING_FEEDBACK           => wp_kses_data(
-                $_REQUEST[static::$gateway . '_booking_feedback']
-            ),
-            static::$gateway . "_booking_feedback_free"   => wp_kses_data(
-                $_REQUEST[static::$gateway . '_booking_feedback_free']
-            ),
-            static::$gateway . "_booking_feedback_thanks" => wp_kses_data(
-                $_REQUEST[static::$gateway . BOOKING_FEEDBACK_THANKS]
-            ),
-            static::$gateway . "_booking_timeout"         => $_REQUEST[static::$gateway . BOOKING_TIMEOUT],
-            static::$gateway . RETURN_API                 => $_REQUEST[static::$gateway . '_return'],
-            static::$gateway . CANCEL_RETURN              => $_REQUEST[static::$gateway . '_cancel_return'],
+            $gateway_prefix . MERCHANT_ID => isset($_REQUEST['merchant_id']) ? sanitize_text_field($_REQUEST['merchant_id']) : '',
+            $gateway_prefix . MERCHANT_KEY => isset($_REQUEST['merchant_key']) ? sanitize_text_field($_REQUEST['merchant_key']) : '',
+            $gateway_prefix . PASSPHRASE => isset($_REQUEST['passphrase']) ? sanitize_text_field($_REQUEST['passphrase']) : '',
+            $gateway_prefix . "_currency" => isset($_REQUEST['currency']) ? sanitize_text_field($_REQUEST['currency']) : '',
+            $gateway_prefix . STATUS => isset($_REQUEST[$gateway_prefix . '_status']) ? sanitize_text_field($_REQUEST[$gateway_prefix . '_status']) : '',
+            $gateway_prefix . "_debug" => isset($_REQUEST[$gateway_prefix . '_debug'])
+                ? filter_var( $_REQUEST[$gateway_prefix . '_debug'], FILTER_SANITIZE_NUMBER_INT )
+                : '',
+            $gateway_prefix . "_manual_approval" => isset($_REQUEST[$gateway_prefix . MANUAL_APPROVAL])
+                ? filter_var( $_REQUEST[$gateway_prefix . MANUAL_APPROVAL], FILTER_SANITIZE_NUMBER_INT )
+                : '',
+            $gateway_prefix . BOOKING_FEEDBACK => isset($_REQUEST[$gateway_prefix . '_booking_feedback']) ? wp_kses_data($_REQUEST[$gateway_prefix . '_booking_feedback']) : '',
+            $gateway_prefix . "_booking_feedback_free" => isset($_REQUEST[$gateway_prefix . '_booking_feedback_free']) ? wp_kses_data($_REQUEST[$gateway_prefix . '_booking_feedback_free']) : '',
+            $gateway_prefix . "_booking_feedback_thanks" => isset($_REQUEST[$gateway_prefix . BOOKING_FEEDBACK_THANKS]) ? wp_kses_data($_REQUEST[$gateway_prefix . BOOKING_FEEDBACK_THANKS]) : '',
+            $gateway_prefix . "_booking_timeout" => isset($_REQUEST[$gateway_prefix . BOOKING_TIMEOUT])
+                ? filter_var( $_REQUEST[$gateway_prefix . BOOKING_TIMEOUT], FILTER_SANITIZE_NUMBER_INT )
+                : '',
+            $gateway_prefix . RETURN_API => isset($_REQUEST[$gateway_prefix . '_return']) ? esc_url_raw($_REQUEST[$gateway_prefix . '_return']) : '',
+            $gateway_prefix . CANCEL_RETURN => isset($_REQUEST[$gateway_prefix . '_cancel_return']) ? esc_url_raw($_REQUEST[$gateway_prefix . '_cancel_return']) : '',
         );
+
         foreach ($gateway_options as $key => $option) {
             update_option('em_' . $key, stripslashes($option));
         }
 
-        // Default action is to return true
         return parent::update($gateway_options);
     }
+
 }
 
 ?>

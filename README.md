@@ -1,6 +1,6 @@
 # mod-events-manager-pro
 
-## Payfast module v1.0.1 for Events Manager v6.4.7.2 and Events Manager Pro v3.2.8.1
+## Payfast module v1.1.0 for Events Manager v6.6.4.4 and Events Manager Pro v3.5
 
 This is the Payfast module for Events Manager Pro. Please feel free
 to [contact the Payfast support team](https://payfast.io/contact/) should you require any assistance.
@@ -8,23 +8,24 @@ to [contact the Payfast support team](https://payfast.io/contact/) should you re
 ## Installation
 
 1. Verify that WordPress has the **Events Manager** and **Events Manager Pro** plugins installed and activated.
-2. Download and unzip [v1.0.1](https://github.com/Payfast/mod-events-manager-pro/archive/refs/tags/v1.0.1.zip).
+2. Download and unzip [v1.1.0](https://github.com/Payfast/mod-events-manager-pro/archive/refs/tags/v1.1.0.zip).
 3. Using FTP to copy the wp-content file to your root WordPress directory.
-4. Add ```include('gateway.payfast.php');``` to **line 87** of:
+4. Add ```include('gateway.payfast.php');``` to **line ±88** of:
 
 ```
 /wp-content/plugins/events-manager-pro/add-ons/gateways/gateways.php
 ```
 
-Be careful to not edit **gateway.php**, as there are two similarly named files. To confirm, you should see ```// load native gateways``` on **line 83** of the **init()** function.
+Be careful to not edit **gateway.php**, as there are two similarly named files. To confirm, you should see
+```// load native gateways``` on **line 83** of the **init()** function.
 
-5. Add ```'ZAR' => 'ZAR - South African Rand'``` to **line 262**, and add ```'ZAR' => 'R'``` to **lines 263-264** of:
+5. Navigate to the em-functions.php file
 
 ```
 /wp-content/plugins/events-manager/em-functions.php
 ```
 
-For example, your **em_get_currencies()** function may change from:
+Search for ** function em_get_currencies()** and replace the function body (i.e. code block within curly braces {}) from
 
 ```
 function em_get_currencies(){
@@ -36,7 +37,7 @@ function em_get_currencies(){
 }
 ```
 
-Into:
+To:
 
 ```
 function em_get_currencies(){
@@ -49,10 +50,13 @@ function em_get_currencies(){
 ```
 
 6. Log in to the admin dashboard of your website, then navigate to **Events** -> **Payment Gateways**.
-7. Click on **Payfast** -> **settings**, then set the **General Options** and **Payfast Options** according to your needs.
-8. Click the **Save Changes** button.
-9. Navigate back to **Events** -> **Payment Gateways**, then click **Payfast** -> **Activate**.
-10. Navigate to **Settings** -> **Bookings** -> **Pricing Options** and select **ZAR - South African Rand** from the **Currency** dropdown.
+7. Click on **Payfast** -> **settings**, then set the **General Options** and **Payfast Options** according to your
+   needs.
+8. Under **Payfast Options** set the **Return URL** to  http://yoursite.com/youreventspage/my-bookings/?thanks=1 needs and **Cancel URL** to http://yoursite.com/events/.
+9. Click the **Save Changes** button.
+10. Navigate back to **Events** -> **Payment Gateways**, then click **Payfast** -> **Activate**.
+11. Navigate to **Settings** -> **Bookings** -> **Pricing Options** and select **ZAR - South African Rand** from the
+    **Currency** dropdown.
 
 Please [click here](https://payfast.io/integration/plugins/events-manager-pro/) for more information concerning this
 module.
