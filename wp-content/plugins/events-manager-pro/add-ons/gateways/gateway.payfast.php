@@ -10,15 +10,16 @@ use EM_Multiple_Bookings;
 use EM_Object;
 use EM_Pro;
 use EMP_Logs;
-use Payfast\PayfastCommon\PayfastCommon;
+use Payfast\PayfastCommon\Aggregator\Request\PaymentRequest;
+use Payfast\Classes\PayfastTransaction;
 
 require_once __DIR__ . '/vendor/autoload.php';
 
 // Global constants
 define('PF_SOFTWARE_NAME', 'Events Manager');
 define('PF_MODULE_NAME', 'PayFast-Events Manager');
-define('PF_MODULE_VER', '1.0.1');
-define('PF_SOFTWARE_VER', '3.2.8.1');
+define('PF_MODULE_VER', '1.1.0');
+define('PF_SOFTWARE_VER', '3.5');
 define('PF_DEBUG', get_option("em_payfast_debug") == 'true' ? true : false);
 
 define('BOOKING_TIMEOUT', '_booking_timeout');
@@ -43,14 +44,14 @@ define('BOOKING_FEEDBACK', '_booking_feedback');
 class Gateway extends \EM\Payments\Gateway
 {
 
-    public static $gateway = 'payfast';
-    public static $title = 'Payfast';
-    public static $status = 4;
-    public static $button_enabled = true;
-    public static $count_pending_spaces = true;
-    public static $can_manually_approve = false;
+    public static $gateway                    = 'payfast';
+    public static $title                      = 'Payfast';
+    public static $status                     = 4;
+    public static $button_enabled             = true;
+    public static $count_pending_spaces       = true;
+    public static $can_manually_approve       = false;
     public static $supports_multiple_bookings = true;
-    public static $status_txt = 'Awaiting Payfast Payment';
+    public static $status_txt                 = 'Awaiting Payfast Payment';
 
     /**
      * Sets up gateway and registers actions/filters
@@ -88,7 +89,7 @@ class Gateway extends \EM\Payments\Gateway
     }
 
     /**
-     * Intercepts return data after a booking has been made and adds paypal vars, modifies feedback message.
+     * Intercepts return data after a booking has been made and adds vars, modifies feedback message.
      *
      * @param array $return
      * @param EM_Booking $EM_Booking
@@ -223,44 +224,7 @@ class Gateway extends \EM\Payments\Gateway
 
     public static function get_payfast_vars($EM_Booking)
     {
-        global $wp_rewrite, $EM_Notices;
-        $notify_url                   = static::get_payment_return_url();
-        $payfast_vars                 = array();
-        $pf_merchant_id               = get_option('em_' . static::$gateway . MERCHANT_ID);
-        $pf_merchant_key              = get_option('em_' . static::$gateway . MERCHANT_KEY);
-        $payfast_vars['merchant_id']  = $pf_merchant_id;
-        $payfast_vars['merchant_key'] = $pf_merchant_key;
-        $passPhrase                   = get_option('em_' . static::$gateway . PASSPHRASE);
-
-        if (!empty(get_option('em_' . static::$gateway . RETURN_API))) {
-            $payfast_vars['return_url'] = get_option('em_' . static::$gateway . RETURN_API);
-        }
-
-        if (!empty(get_option('em_' . static::$gateway . CANCEL_RETURN))) {
-            $payfast_vars['cancel_url'] = get_option('em_' . static::$gateway . CANCEL_RETURN);
-        }
-
-        $payfast_vars['notify_url'] = $notify_url;
-
-        $payfast_vars['name_first'] = $EM_Booking->get_person()->get_name();
-
-        $payfast_vars['m_payment_id'] = $EM_Booking->booking_id;
-        $payfast_vars['amount']       = $EM_Booking->get_price();
-        $payfast_vars['item_name']    = $EM_Booking->get_event()->event_name;
-
-        $pfOutput = '';
-        // Create output string
-        foreach ($payfast_vars as $key => $val) {
-            if ($val !== '') {
-                $pfOutput .= $key . '=' . urlencode(trim($val)) . '&';
-            }
-        }
-        // Remove last ampersand
-        $pfOutput = substr($pfOutput, 0, -1);
-        if ($passPhrase !== null) {
-            $pfOutput .= '&passphrase=' . urlencode(trim($passPhrase));
-        }
-        $payfast_vars['signature'] = md5($pfOutput);
+        $payfast_vars = PayfastTransaction::prepare_payfast_vars($EM_Booking);
 
         return apply_filters('em_gateway_payfast_get_payfast_vars', $payfast_vars, $EM_Booking, static::class);
     }
@@ -268,8 +232,8 @@ class Gateway extends \EM\Payments\Gateway
     public static function get_payfast_url()
     {
         return (get_option(
-                    'em_' . static::$gateway . STATUS
-                ) == 'test') ? 'https://sandbox.payfast.co.za/eng/process' : 'https://www.payfast.co.za/eng/process';
+                'em_' . static::$gateway . STATUS
+            ) == 'test') ? 'https://sandbox.payfast.co.za/eng/process' : 'https://www.payfast.co.za/eng/process';
     }
 
     public static function say_thanks()
@@ -287,79 +251,9 @@ class Gateway extends \EM\Payments\Gateway
             return false;
         }
 
-        PayfastCommon::pflog('Payfast ITN call received');
+        $paymentRequest = new PaymentRequest(PF_DEBUG);
 
-        $pfError       = false;
-        $pfErrMsg      = '';
-        $pfDone        = false;
-        $pfData        = array();
-        $pfParamString = '';
-        $pfHost        = (get_option(
-                              'em_' . static::$gateway . STATUS
-                          ) == 'test') ? 'sandbox.payfast.co.za' : 'www.payfast.co.za';
-
-        //// Notify Payfast that information has been received
-        self::notifyPF($pfError, $pfDone);
-
-        if (!$pfError && !$pfDone) {
-            PayfastCommon::pflog('Get posted data');
-
-            // Posted variables from ITN
-            $pfData = PayfastCommon::pfGetData();
-
-            PayfastCommon::pflog('Payfast Data: ' . print_r($pfData, true));
-
-            if ($pfData === false) {
-                $pfError  = true;
-                $pfErrMsg = PayfastCommon::PF_ERR_BAD_ACCESS;
-            }
-        }
-
-        //// Verify security signature
-        list($pfParamString, $pfError, $pfErrMsg) = self::verifySignature($pfError, $pfData, $pfParamString, $pfErrMsg);
-
-        if (!$pfError) {
-            PayfastCommon::pflog('Verify data received');
-
-            $pfValid = PayfastCommon::pfValidData($pfHost, $pfParamString);
-
-            if (!$pfValid) {
-                $pfError  = true;
-                $pfErrMsg = PayfastCommon::PF_ERR_BAD_ACCESS;
-            }
-        }
-
-        if ($pfError) {
-            PayfastCommon::pflog('Error occurred: ' . $pfErrMsg);
-        }
-
-        // Handle cases that the system must ignore
-        if (!$pfError && !$pfDone) {
-            PayfastCommon::pflog('check status and update order');
-
-            $new_status = false;
-            // Common variables
-            $amount     = $_POST['amount_gross'];
-            $currency   = 'ZAR';
-            $timestamp  = date('Y-m-d H:i:s');
-            $booking_id = $_POST['m_payment_id'];
-            $EM_Booking = $EM_Booking = em_get_booking($booking_id);
-            // Booking exists
-            // Override the booking ourselves:
-            $EM_Booking->manage_override = true;
-            $user_id                     = $EM_Booking->person_id;
-        }
-
-        // Process Payfast response
-        match ($_POST['payment_status']) {
-            'COMPLETE' => self::paymentComplete($EM_Booking, $amount, $currency, $timestamp),
-
-            'FAILED' => self::paymentFailed($EM_Booking, $amount, $currency, $timestamp),
-
-            'PENDING' => self::paymentPending($EM_Booking, $amount, $currency, $timestamp),
-
-            default => null,
-        };
+        PayfastTransaction::process_itn_response($paymentRequest);
     }
 
     public static function payment_return_local_ca_curl($handle)
@@ -394,7 +288,7 @@ class Gateway extends \EM\Payments\Gateway
                                     _e('Amount', 'em-pro') ?></th>
                                 <td><input type="text" name="transaction_total_amount" value="<?php
                                     if (!empty($_REQUEST['transaction_total_amount'])) {
-                                        echo esc_attr($_REQUEST['transaction_total_amount']);
+                                        echo esc_attr(sanitize_text_field($_REQUEST['transaction_total_amount']));
                                     } ?>"/>
                                     <br/>
                                     <em><?php
@@ -411,7 +305,7 @@ class Gateway extends \EM\Payments\Gateway
                                 <td>
                                     <textarea name="transaction_note"><?php
                                         if (!empty($_REQUEST['transaction_note'])) {
-                                            echo esc_attr($_REQUEST['transaction_note']);
+                                            echo esc_attr(sanitize_text_field($_REQUEST['transaction_note']));
                                         } ?></textarea>
                                 </td>
                             </tr>
@@ -421,7 +315,14 @@ class Gateway extends \EM\Payments\Gateway
                         <input type="hidden" name="_wpnonce" value="<?php
                         echo wp_create_nonce('gateway_add_payment'); ?>"/>
                         <input type="hidden" name="redirect_to" value="<?php
-                        echo (!empty($_REQUEST['redirect_to'])) ? $_REQUEST['redirect_to'] : em_wp_get_referer(); ?>"/>
+                            if ( ! empty( $_REQUEST['redirect_to'] ) ) {
+                                $redirect_to = esc_url_raw( $_REQUEST['redirect_to'], array( 'http', 'https' ) );
+                                echo esc_attr( $redirect_to );
+                            } else {
+                                $referer = em_wp_get_referer();
+                                echo esc_attr( esc_url( $referer ) );
+                            }
+                        ?>"/>
                         <input type="submit" class="<?php
                         if (is_admin()) {
                             echo 'button-primary';
@@ -470,97 +371,6 @@ class Gateway extends \EM\Payments\Gateway
         }
     }
 
-    /**
-     * @param bool $pfError
-     * @param mixed $pfData
-     * @param string $pfParamString
-     * @param string $pfErrMsg
-     *
-     * @return array
-     */
-    public static function verifySignature(bool $pfError, mixed $pfData, string $pfParamString, string $pfErrMsg): array
-    {
-        if (!$pfError) {
-            PayfastCommon::pflog('Verify security signature');
-
-
-            $pf_merchant_id  = get_option('em_' . static::$gateway . MERCHANT_ID);
-            $pf_merchant_key = get_option('em_' . static::$gateway . MERCHANT_KEY);
-            $passPhrase      = get_option('em_' . static::$gateway . PASSPHRASE);
-            $pfPassphrase    = (empty($passPhrase) ||
-                                empty($pf_merchant_id) ||
-                                empty($pf_merchant_key))
-                ? null : $passPhrase;
-
-            // If signature different, log for debugging
-            if (!PayfastCommon::pfValidSignature($pfData, $pfParamString, $pfPassphrase)) {
-                $pfError  = true;
-                $pfErrMsg = PayfastCommon::PF_ERR_INVALID_SIGNATURE;
-            }
-        }
-
-        return array($pfParamString, $pfError, $pfErrMsg);
-    }
-
-    private static function paymentComplete($EM_Booking, mixed $amount, string $currency, string $timestamp): void
-    {
-        PayfastCommon::pflog('-Complete');
-        // Case: successful payment
-        static::record_transaction(
-            $EM_Booking,
-            $amount,
-            $currency,
-            $timestamp,
-            $_POST['pf_payment_id'],
-            $_POST['payment_status'],
-            ''
-        );
-        if ($_POST['amount_gross'] >= $EM_Booking->get_price() && (!get_option(
-                    'em_' . static::$gateway . MANUAL_APPROVAL,
-                    false
-                ) || !get_option('dbem_bookings_approval'))) {
-            // Approve and ignore spaces
-            $EM_Booking->approve(true, true);
-        } else {
-            $EM_Booking->set_status(0); //Set back to normal "pending"
-        }
-        do_action('em_payment_processed', $EM_Booking, static::class);
-    }
-
-    private static function paymentFailed($EM_Booking, mixed $amount, string $currency, string $timestamp): void
-    {
-        PayfastCommon::pflog('- Failed');
-        // Case: denied
-        $note = 'Last transaction failed';
-        static::record_transaction(
-            $EM_Booking,
-            $amount,
-            $currency,
-            $timestamp,
-            $_POST['pf_payment_id'],
-            $_POST['payment_status'],
-            $note
-        );
-        $EM_Booking->cancel();
-        do_action('em_payment_denied', $EM_Booking, static::class);
-    }
-
-    private static function paymentPending($EM_Booking, mixed $amount, string $currency, string $timestamp): void
-    {
-        PayfastCommon::pflog('- Pending');
-        // Case: pending
-        $note = 'Last transaction is pending. Reason: ';
-        static::record_transaction(
-            $EM_Booking,
-            $amount,
-            $currency,
-            $timestamp,
-            $_POST['txn_id'],
-            $_POST['payment_status'],
-            $note
-        );
-        do_action('em_payment_pending', $EM_Booking, static::class);
-    }
 }
 
 Gateway::init();
