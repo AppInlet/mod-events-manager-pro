@@ -1,6 +1,6 @@
 # events-manager-pro-aggregation
 
-## Payfast Aggregation module v1.2.0 for Events Manager v7.1.0.0 and Events Manager Pro v3.6.2
+## Payfast Aggregation module v1.2.1 for Events Manager v7.1.0.0 and Events Manager Pro v3.6.2
 
 This is the Payfast aggregation module for Events Manager Pro. Please feel free
 to [contact the Payfast support team](https://payfast.io/contact/) should you require any assistance.
@@ -8,7 +8,7 @@ to [contact the Payfast support team](https://payfast.io/contact/) should you re
 ## Installation
 
 1. Verify that WordPress has the **Events Manager** and **Events Manager Pro** plugins installed and activated.
-2. Download and unzip [v1.2.0](https://github.com/Payfast/events-manager-pro-aggregation/archive/refs/tags/v1.2.0.zip).
+2. Download and unzip [v1.2.1](https://github.com/Payfast/events-manager-pro-aggregation/archive/refs/tags/v1.2.1.zip).
 3. Using FTP to copy the wp-content file to your root WordPress directory.
 4. Add ```include('gateway.payfast.php');``` to **line ±88** of:
 

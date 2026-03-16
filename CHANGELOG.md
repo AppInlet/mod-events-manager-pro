@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.1](https://github.com/Payfast/events-manager-pro-aggregation/releases/tag/v1.2.1)
+
+### Fixed
+
+- Cancelling a transaction on the gateway's payment page now releases the reserved booking.
+
 ## [1.2.0](https://github.com/Payfast/events-manager-pro-aggregation/releases/tag/v1.2.0)
 
 ### Added
