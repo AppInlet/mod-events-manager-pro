@@ -18,7 +18,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 // Global constants
 define('PF_SOFTWARE_NAME', 'Events Manager');
 define('PF_MODULE_NAME', 'PayFast Aggregation-Events Manager');
-define('PF_MODULE_VER', '1.2.0');
+define('PF_MODULE_VER', '1.2.1');
 define('PF_SOFTWARE_VER', '3.6.2');
 define('PF_DEBUG', get_option("em_payfast_debug") == 'true' ? true : false);
 
@@ -74,6 +74,7 @@ class Gateway extends \EM\Payments\Gateway
             add_filter('em_my_bookings_booking_actions', array(static::class, 'em_my_bookings_booking_actions'), 1, 2);
 
             add_action('em_handle_payment_return_' . static::$gateway, array(static::class, 'handle_payment_return'));
+            add_action('template_redirect', array(static::class, 'handle_cancel_return'));
             // Set up cron
             $timestamp = wp_next_scheduled('emp_payfast_cron');
             if
@@ -368,6 +369,39 @@ class Gateway extends \EM\Payments\Gateway
         if (!$pfError && !$pfDone) {
             header('HTTP/1.0 200 OK');
             flush();
+        }
+    }
+
+    public static function handle_cancel_return()
+    {
+        // Only run if cancel return page is hit
+        if (empty($_GET['em_booking_id']) || empty($_GET['em_gateway'])) {
+            return;
+        }
+
+        if ($_GET['em_gateway'] !== static::$gateway) {
+            return;
+        }
+
+        $booking_id = absint($_GET['em_booking_id']);
+
+        if ($booking_id <= 0) {
+            return;
+        }
+
+        $EM_Booking = em_get_booking($booking_id);
+
+        if (!$EM_Booking || empty($EM_Booking->booking_id)) {
+            return;
+        }
+
+        // Only cancel bookings still awaiting PayFast
+        if ((int) $EM_Booking->booking_status === static::$status) {
+
+            $EM_Booking->manage_override = true;
+
+            // Status 3 = Cancelled (releases spaces)
+            $EM_Booking->set_status(3, false);
         }
     }
 

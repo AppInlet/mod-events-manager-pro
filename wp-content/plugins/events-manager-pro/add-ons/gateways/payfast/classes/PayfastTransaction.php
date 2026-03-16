@@ -36,7 +36,15 @@ class PayfastTransaction
         }
 
         if (!empty(get_option('em_' . Gateway::$gateway . self::CANCEL_RETURN))) {
-            $payfast_vars['cancel_url'] = get_option('em_' . Gateway::$gateway . self::CANCEL_RETURN);
+            $cancel_url = get_option('em_' . Gateway::$gateway . self::CANCEL_RETURN);
+
+            // Add booking id so we can cancel the booking when user returns
+            $cancel_url = add_query_arg([
+                'em_booking_id' => $EM_Booking->booking_id,
+                'em_gateway'    => Gateway::$gateway,
+            ], $cancel_url);
+
+            $payfast_vars['cancel_url'] = $cancel_url;
         }
 
         $payfast_vars['notify_url'] = $notify_url;
@@ -83,7 +91,7 @@ class PayfastTransaction
             'pfSoftwareName'       => 'Events Manager',
             'pfSoftwareVer'        => '3.6.2',
             'pfSoftwareModuleName' => 'PayFast-Events Manager',
-            'pfModuleVer'          => '1.2.0',
+            'pfModuleVer'          => '1.2.1',
         ];
         $pfHost        = (get_option(
                               'em_' . Gateway::$gateway . STATUS
@@ -141,6 +149,10 @@ class PayfastTransaction
             $timestamp  = date('Y-m-d H:i:s');
             $booking_id = $booking_id_raw;
             $EM_Booking = $EM_Booking = em_get_booking($booking_id);
+            if (!$EM_Booking || empty($EM_Booking->booking_id)) {
+                $paymentRequest->pflog('Booking not found for m_payment_id=' . print_r($booking_id, true));
+                return;
+            }
             // Booking exists
             // Override the booking ourselves:
             $EM_Booking->manage_override = true;
@@ -149,13 +161,11 @@ class PayfastTransaction
 
         // Process Payfast response
         match (sanitize_text_field($_POST['payment_status'])) {
-            'COMPLETE' => self::paymentComplete($EM_Booking, $amount, $currency, $timestamp),
-
-            'FAILED' => self::paymentFailed($EM_Booking, $amount, $currency, $timestamp),
-
-            'PENDING' => self::paymentPending($EM_Booking, $amount, $currency, $timestamp),
-
-            default => null,
+            'COMPLETE'  => self::paymentComplete($EM_Booking, $amount, $currency, $timestamp),
+            'FAILED'    => self::paymentFailed($EM_Booking, $amount, $currency, $timestamp),
+            'CANCELLED' => self::paymentCancelled($EM_Booking, $amount, $currency, $timestamp),
+            'PENDING'   => self::paymentPending($EM_Booking, $amount, $currency, $timestamp),
+            default     => null,
         };
     }
 
@@ -235,12 +245,12 @@ class PayfastTransaction
     public static function paymentFailed($EM_Booking, mixed $amount, string $currency, string $timestamp): void
     {
         $paymentRequest = new PaymentRequest(PF_DEBUG);
-
         $paymentRequest->pflog('- Failed');
-        // Case: denied
+
         $note          = 'Last transaction failed';
         $pfPaymentId   = isset($_POST['pf_payment_id']) ? sanitize_text_field($_POST['pf_payment_id']) : '';
         $paymentStatus = isset($_POST['payment_status']) ? sanitize_text_field($_POST['payment_status']) : '';
+
         Gateway::record_transaction(
             $EM_Booking,
             $amount,
@@ -250,7 +260,35 @@ class PayfastTransaction
             $paymentStatus,
             $note
         );
-        $EM_Booking->cancel();
+
+        // Force a real EM status so spaces are released
+        $EM_Booking->manage_override = true;
+        $EM_Booking->set_status(2, false); // Rejected (or use 3 if you prefer)
+        do_action('em_payment_denied', $EM_Booking, Gateway::class);
+    }
+
+    public static function paymentCancelled($EM_Booking, mixed $amount, string $currency, string $timestamp): void
+    {
+        $paymentRequest = new PaymentRequest(PF_DEBUG);
+        $paymentRequest->pflog('- Cancelled');
+
+        $note          = 'Payment cancelled by user';
+        $pfPaymentId   = isset($_POST['pf_payment_id']) ? sanitize_text_field($_POST['pf_payment_id']) : '';
+        $paymentStatus = isset($_POST['payment_status']) ? sanitize_text_field($_POST['payment_status']) : '';
+
+        Gateway::record_transaction(
+            $EM_Booking,
+            $amount,
+            $currency,
+            $timestamp,
+            $pfPaymentId,
+            $paymentStatus,
+            $note
+        );
+
+        // Force a real EM status so spaces are released
+        $EM_Booking->manage_override = true;
+        $EM_Booking->set_status(3, false); // Cancelled
         do_action('em_payment_denied', $EM_Booking, Gateway::class);
     }
 
